@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Court Case Diary</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js"></script>
+<style>
+  :root {
+    --bg: #f5f3ee;
+    --surface: #ffffff;
+    --surface2: #f9f8f5;
+    --border: #ddd9d0;
+    --border2: #ccc8bf;
+    --text: #1a1a18;
+    --text2: #5a5a55;
+    --text3: #8a8a85;
+    --accent: #2c4a7c;
+    --accent-light: #e8eef7;
+    --accent2: #8b4513;
+    --danger: #a32d2d;
+    --danger-light: #fcebeb;
+    --success: #3b6d11;
+    --success-light: #eaf3de;
+    --warning: #854f0b;
+    --warning-light: #faeeda;
+    --radius: 8px;
+    --radius-lg: 12px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.12);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Georgia, 'Times New Roman', serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+  
+  /* HEADER */
+  .app-header {
+    background: var(--accent);
+    color: #fff;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+  .app-header h1 { font-size: 18px; font-weight: 600; letter-spacing: 0.3px; }
+  .app-header .subtitle { font-size: 11px; opacity: 0.75; margin-top: 1px; }
+  .header-actions { display: flex; gap: 8px; align-items: center; }
+  .btn {
+    padding: 6px 14px;
+    border-radius: var(--radius);
+    border: 1px solid transparent;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    font-weight: 500;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-primary { background: #fff; color: var(--accent); border-color: #fff; }
+  .btn-primary:hover { background: #e8eef7; }
+  .btn-outline { background: transparent; color: #fff; border-color: rgba(255,255,255,0.5); }
+  .btn-outline:hover { background: rgba(255,255,255,0.15); }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+  .btn-danger { background: var(--danger-light); color: var(--danger); border-color: #f7c1c1; }
+  .btn-danger:hover { background: #f7c1c1; }
+  .btn-success { background: var(--success-light); color: var(--success); border-color: #c0dd97; }
+  .btn-success:hover { background: #c0dd97; }
+  .btn-accent { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn-accent:hover { background: #1e3560; }
+
+  /* LAYOUT */
+  .app-body { display: flex; height: calc(100vh - 56px); }
+  .sidebar { width: 260px; min-width: 260px; background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+  .main-content { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+
+  /* SIDEBAR */
+  .sidebar-section h3 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text3); margin-bottom: 8px; }
+  .filter-group { display: flex; flex-direction: column; gap: 6px; }
+  .filter-group label { font-size: 12px; color: var(--text2); }
+  .filter-group input, .filter-group select {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 12px;
+    font-family: inherit;
+    background: var(--surface2);
+    color: var(--text);
+  }
+  .filter-group input:focus, .filter-group select:focus { outline: none; border-color: var(--accent); }
+  .sidebar-divider { border: none; border-top: 1px solid var(--border); }
+
+  /* STATS */
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; }
+  .stat-card .label { font-size: 11px; color: var(--text3); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-card .value { font-size: 24px; font-weight: 600; color: var(--accent); }
+
+  /* TABLE */
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow); }
+  .table-toolbar { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--surface2); }
+  .table-toolbar .left { display: flex; align-items: center; gap: 8px; }
+  .table-toolbar .right { display: flex; align-items: center; gap: 8px; }
+  .table-container { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th {
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text2);
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    cursor: pointer;
+    user-select: none;
+  }
+  th:hover { background: #eeeae0; }
+  th.sort-asc::after { content: ' ↑'; color: var(--accent); }
+  th.sort-desc::after { content: ' ↓'; color: var(--accent); }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--accent-light); }
+  .priority-badge {
+    display: inline-block;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+    line-height: 24px;
+  }
+  .priority-badge.p1 { background: var(--danger); }
+  .priority-badge.p2 { background: var(--warning); color: #fff; }
+  .priority-badge.p3 { background: var(--accent); }
+  .stage-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    background: var(--accent-light);
+    color: var(--accent);
+  }
+  .date-cell { white-space: nowrap; color: var(--text2); }
+  .date-cell.overdue { color: var(--danger); font-weight: 600; }
+  .date-cell.today { color: var(--warning); font-weight: 600; }
+  .date-cell.upcoming { color: var(--success); font-weight: 600; }
+  .row-actions { display: flex; gap: 4px; }
+  .icon-btn {
+    width: 26px; height: 26px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    transition: all 0.12s;
+  }
+  .icon-btn:hover { background: var(--accent-light); border-color: var(--accent); }
+  .icon-btn.danger:hover { background: var(--danger-light); border-color: var(--danger); }
+  .attach-link { color: var(--accent); text-decoration: none; font-size: 11px; }
+  .attach-link:hover { text-decoration: underline; }
+  .no-data { text-align: center; padding: 40px; color: var(--text3); }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 200;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .modal {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    width: 100%;
+    max-width: 780px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-md);
+  }
+  .modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    z-index: 1;
+  }
+  .modal-header h2 { font-size: 16px; font-weight: 600; }
+  .modal-body { padding: 20px; }
+  .modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-grid .full { grid-column: 1 / -1; }
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .form-group label { font-size: 12px; font-weight: 500; color: var(--text2); }
+  .form-group input, .form-group select, .form-group textarea {
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--text);
+    background: var(--surface2);
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: #fff;
+  }
+  .form-group textarea { resize: vertical; min-height: 60px; }
+  .form-section-title {
+    grid-column: 1 / -1;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: var(--text3);
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border);
+    margin-top: 4px;
+  }
+  .file-input-wrap { position: relative; }
+  .file-input-wrap input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .file-input-btn { padding: 6px 12px; border: 1px dashed var(--border2); border-radius: var(--radius); font-size: 12px; color: var(--text2); text-align: center; cursor: pointer; background: var(--surface2); }
+  .file-input-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .file-name { font-size: 11px; color: var(--success); margin-top: 3px; }
+
+  /* DRIVE PANEL */
+  .drive-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; }
+  .drive-status { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .drive-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text3); }
+  .drive-dot.connected { background: var(--success); }
+
+  /* TOAST */
+  .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 999; display: flex; flex-direction: column; gap: 8px; }
+  .toast {
+    padding: 10px 16px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    background: var(--text);
+    color: #fff;
+    box-shadow: var(--shadow-md);
+    animation: slideIn 0.2s ease;
+  }
+  .toast.success { background: var(--success); }
+  .toast.error { background: var(--danger); }
+  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* EXPORT MENU */
+  .dropdown { position: relative; display: inline-block; }
+  .dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+    z-index: 50;
+    min-width: 160px;
+    display: none;
+  }
+  .dropdown-menu.open { display: block; }
+  .dropdown-item {
+    padding: 8px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text);
+  }
+  .dropdown-item:hover { background: var(--accent-light); color: var(--accent); }
+  .dropdown-item:first-child { border-radius: var(--radius) var(--radius) 0 0; }
+  .dropdown-item:last-child { border-radius: 0 0 var(--radius) var(--radius); }
+
+  /* VIEW DETAIL */
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .detail-row { display: flex; flex-direction: column; gap: 2px; }
+  .detail-row .key { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); }
+  .detail-row .val { font-size: 13px; color: var(--text); }
+  .detail-section-title {
+    grid-column: 1 / -1;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: var(--accent);
+    padding: 8px 0 4px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* RESPONSIVE TABLE COLUMNS */
+  .col-priority { width: 50px; text-align: center; }
+  .col-village { min-width: 100px; }
+  .col-case { min-width: 120px; }
+  .col-party { min-width: 130px; }
+  .col-stage { min-width: 100px; }
+  .col-date { width: 90px; }
+  .col-adv { min-width: 110px; }
+  .col-actions { width: 80px; }
+
+  @media (max-width: 900px) {
+    .stats-row { grid-template-columns: 1fr 1fr; }
+    .form-grid { grid-template-columns: 1fr; }
+    .form-grid .full { grid-column: 1; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="app-header">
+  <div>
+    <h1>⚖ Court Case Diary</h1>
+    <div class="subtitle">Adv. Santosh Keshav Patil &mdash; Case Management System</div>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-outline btn-sm" onclick="toggleDrivePanel()">☁ Drive</button>
+    <button class="btn btn-primary" onclick="openAddModal()">+ Add Case</button>
+  </div>
+</header>
+
+<div class="app-body">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <h3>Sort By</h3>
+      <div class="filter-group">
+        <select id="sortBy" onchange="renderTable()">
+          <option value="priority">Priority</option>
+          <option value="nextDate">Next Date</option>
+          <option value="village">Village</option>
+          <option value="caseNumber">Case Number</option>
+          <option value="prevDate">Previous Date</option>
+        </select>
+        <select id="sortDir" onchange="renderTable()">
+          <option value="asc">Ascending</option>
+          <option value="desc">Descending</option>
+        </select>
+      </div>
+    </div>
+
+    <hr class="sidebar-divider">
+
+    <div class="sidebar-section">
+      <h3>Filter</h3>
+      <div class="filter-group">
+        <label>Village</label>
+        <select id="filterVillage" onchange="renderTable()"><option value="">All Villages</option></select>
+        <label>Stage</label>
+        <select id="filterStage" onchange="renderTable()"><option value="">All Stages</option></select>
+        <label>Next Date</label>
+        <input type="date" id="filterDateFrom" onchange="renderTable()" placeholder="From">
+        <input type="date" id="filterDateTo" onchange="renderTable()" placeholder="To">
+        <label>Search</label>
+        <input type="text" id="filterSearch" oninput="renderTable()" placeholder="Plaintiff / Defendant / Survey No…">
+      </div>
+    </div>
+
+    <hr class="sidebar-divider">
+
+    <div class="sidebar-section">
+      <h3>Export Filtered</h3>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <button class="btn btn-sm" style="background:var(--success-light);color:var(--success);border-color:#c0dd97" onclick="exportExcel()">📊 Export to Excel</button>
+        <button class="btn btn-sm" style="background:var(--danger-light);color:var(--danger);border-color:#f7c1c1" onclick="exportPDF()">📄 Export to PDF</button>
+        <button class="btn btn-sm" style="background:var(--accent-light);color:var(--accent);border-color:#b5d4f4" onclick="exportWord()">📝 Export to Word</button>
+      </div>
+    </div>
+
+    <hr class="sidebar-divider">
+
+    <div class="sidebar-section" id="drivePanelSidebar">
+      <h3>Google Drive</h3>
+      <div class="drive-status" id="driveStatus">
+        <div class="drive-dot" id="driveDot"></div>
+        <span id="driveStatusText">Not connected</span>
+      </div>
+      <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 6px;">
+        <button class="btn btn-sm btn-accent" onclick="initGoogleDrive()">Connect Drive</button>
+        <button class="btn btn-sm" style="background:var(--warning-light);color:var(--warning);border-color:#fac775" onclick="saveToDrive()" id="btnSaveDrive" disabled>💾 Save to Drive</button>
+        <button class="btn btn-sm" onclick="loadFromDrive()" id="btnLoadDrive" disabled>☁ Load from Drive</button>
+      </div>
+      <div style="font-size: 11px; color: var(--text3); margin-top: 8px; line-height: 1.5;">
+        Auto-saves to <code>court_cases.json</code> in your Drive root.
+      </div>
+    </div>
+
+    <hr class="sidebar-divider">
+
+    <div class="sidebar-section">
+      <h3>Local Backup</h3>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <button class="btn btn-sm" onclick="saveLocal()">💾 Save JSON</button>
+        <div style="position:relative;">
+          <button class="btn btn-sm" style="width:100%">📂 Load JSON</button>
+          <input type="file" accept=".json" onchange="loadLocal(event)" style="position:absolute;inset:0;opacity:0;cursor:pointer;">
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content">
+
+    <!-- STATS -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="label">Total Cases</div>
+        <div class="value" id="statTotal">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Due This Week</div>
+        <div class="value" id="statWeek" style="color:var(--warning)">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Overdue</div>
+        <div class="value" id="statOverdue" style="color:var(--danger)">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Villages</div>
+        <div class="value" id="statVillages">0</div>
+      </div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="table-wrap">
+      <div class="table-toolbar">
+        <div class="left">
+          <span style="font-size:13px;font-weight:600;color:var(--text2)" id="tableCount">0 cases</span>
+        </div>
+        <div class="right">
+          <button class="btn btn-sm" onclick="clearFilters()">Clear Filters</button>
+        </div>
+      </div>
+      <div class="table-container">
+        <table id="caseTable">
+          <thead>
+            <tr>
+              <th class="col-priority" onclick="sortBy('priority')">Pri.</th>
+              <th class="col-date" onclick="sortBy('prevDate')">Prev Date</th>
+              <th class="col-village" onclick="sortBy('village')">Village</th>
+              <th onclick="sortBy('surveyNumber')">Survey No.</th>
+              <th class="col-case" onclick="sortBy('caseNumber')">Case No.</th>
+              <th class="col-party" onclick="sortBy('plaintiff')">Plaintiff</th>
+              <th class="col-party" onclick="sortBy('defendant')">Defendant</th>
+              <th class="col-stage" onclick="sortBy('stage')">Stage</th>
+              <th class="col-date" onclick="sortBy('nextDate')">Next Date</th>
+              <th>Next Stage</th>
+              <th class="col-adv">Adv. (P)</th>
+              <th class="col-adv">Adv. (D)</th>
+              <th class="col-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <tr><td colspan="13" class="no-data">No cases added yet. Click "+ Add Case" to begin.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="modal-overlay" id="caseModal" style="display:none" onclick="closeModalOnOverlay(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle">Add New Case</h2>
+      <button class="icon-btn" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-section-title">Basic Information</div>
+        <div class="form-group">
+          <label>Priority Number *</label>
+          <input type="number" id="f_priority" min="1" placeholder="1">
+        </div>
+        <div class="form-group">
+          <label>Case Number *</label>
+          <input type="text" id="f_caseNumber" placeholder="e.g. SCS No. 329/2024">
+        </div>
+        <div class="form-group">
+          <label>Village Name *</label>
+          <input type="text" id="f_village" placeholder="Village name" list="villageList">
+          <datalist id="villageList"></datalist>
+        </div>
+        <div class="form-group">
+          <label>Survey Number</label>
+          <input type="text" id="f_surveyNumber" placeholder="Survey No.">
+        </div>
+        <div class="form-group">
+          <label>Previous Date</label>
+          <input type="date" id="f_prevDate">
+        </div>
+        <div class="form-group">
+          <label>Next Date</label>
+          <input type="date" id="f_nextDate">
+        </div>
+
+        <div class="form-section-title">Parties</div>
+        <div class="form-group">
+          <label>Plaintiff *</label>
+          <input type="text" id="f_plaintiff" placeholder="Plaintiff name(s)">
+        </div>
+        <div class="form-group">
+          <label>Defendant *</label>
+          <input type="text" id="f_defendant" placeholder="Defendant name(s)">
+        </div>
+        <div class="form-group">
+          <label>Advocate on Record (Plaintiff)</label>
+          <input type="text" id="f_advPlaintiff" placeholder="Advocate name">
+        </div>
+        <div class="form-group">
+          <label>Advocate on Record (Defendant)</label>
+          <input type="text" id="f_advDefendant" placeholder="Advocate name">
+        </div>
+
+        <div class="form-section-title">Stage & Next Steps</div>
+        <div class="form-group">
+          <label>Current Stage</label>
+          <input type="text" id="f_stage" placeholder="e.g. Argument, Evidence" list="stageList">
+          <datalist id="stageList">
+            <option value="Filing">
+            <option value="Summons">
+            <option value="Written Statement">
+            <option value="Issues Framing">
+            <option value="Evidence (Plaintiff)">
+            <option value="Evidence (Defendant)">
+            <option value="Argument">
+            <option value="Judgment">
+            <option value="Execution">
+            <option value="Stay Application">
+            <option value="Injunction">
+            <option value="Appeal">
+          </datalist>
+        </div>
+        <div class="form-group">
+          <label>Next Stage</label>
+          <input type="text" id="f_nextStage" placeholder="Next hearing stage" list="stageList">
+        </div>
+
+        <div class="form-section-title">Order Details</div>
+        <div class="form-group">
+          <label>Order Date</label>
+          <input type="date" id="f_orderDate">
+        </div>
+        <div class="form-group">
+          <label>Order Attachment</label>
+          <div class="file-input-wrap">
+            <div class="file-input-btn" id="f_orderFile_btn">📎 Choose file…</div>
+            <input type="file" id="f_orderFile" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="handleFile('f_orderFile')">
+          </div>
+          <div class="file-name" id="f_orderFile_name"></div>
+        </div>
+        <div class="form-group full">
+          <label>Order Notes</label>
+          <textarea id="f_orderNotes" placeholder="Summary of order…"></textarea>
+        </div>
+
+        <div class="form-section-title">Papers Filed by Plaintiff</div>
+        <div class="form-group">
+          <label>Description</label>
+          <input type="text" id="f_papersPlaintiff" placeholder="e.g. Affidavit, Vakalatnama">
+        </div>
+        <div class="form-group">
+          <label>Attachment</label>
+          <div class="file-input-wrap">
+            <div class="file-input-btn" id="f_papersPlaintiffFile_btn">📎 Choose file…</div>
+            <input type="file" id="f_papersPlaintiffFile" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="handleFile('f_papersPlaintiffFile')">
+          </div>
+          <div class="file-name" id="f_papersPlaintiffFile_name"></div>
+        </div>
+
+        <div class="form-section-title">Papers Filed by Defendant</div>
+        <div class="form-group">
+          <label>Description</label>
+          <input type="text" id="f_papersDefendant" placeholder="e.g. Written Statement, Reply">
+        </div>
+        <div class="form-group">
+          <label>Attachment</label>
+          <div class="file-input-wrap">
+            <div class="file-input-btn" id="f_papersDefendantFile_btn">📎 Choose file…</div>
+            <input type="file" id="f_papersDefendantFile" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="handleFile('f_papersDefendantFile')">
+          </div>
+          <div class="file-name" id="f_papersDefendantFile_name"></div>
+        </div>
+
+        <div class="form-section-title">Additional Notes</div>
+        <div class="form-group full">
+          <label>Remarks</label>
+          <textarea id="f_remarks" placeholder="Any additional notes…"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-accent" onclick="saveCase()">Save Case</button>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW DETAIL MODAL -->
+<div class="modal-overlay" id="viewModal" style="display:none" onclick="closeViewOnOverlay(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="viewModalTitle">Case Details</h2>
+      <button class="icon-btn" onclick="closeViewModal()">✕</button>
+    </div>
+    <div class="modal-body" id="viewModalBody"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeViewModal()">Close</button>
+      <button class="btn btn-accent" id="viewEditBtn">Edit Case</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let cases = JSON.parse(localStorage.getItem('court_cases') || '[]');
+let editingId = null;
+let sortCol = 'priority';
+let sortDirection = 'asc';
+let fileData = {};
+let driveTokenClient = null;
+let driveAccessToken = null;
+let driveFileId = null;
+const CLIENT_ID = '';
+const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+function fmtDate(d) {
+  if (!d) return '';
+  try {
+    const [y,m,day] = d.split('-');
+    return `${day}/${m}/${y}`;
+  } catch { return d; }
+}
+
+function dateClass(d) {
+  if (!d) return '';
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dt = new Date(d); dt.setHours(0,0,0,0);
+  const diff = (dt - today) / 86400000;
+  if (diff < 0) return 'overdue';
+  if (diff === 0) return 'today';
+  if (diff <= 7) return 'upcoming';
+  return '';
+}
+
+function getFiltered() {
+  let data = [...cases];
+  const village = document.getElementById('filterVillage').value;
+  const stage = document.getElementById('filterStage').value;
+  const from = document.getElementById('filterDateFrom').value;
+  const to = document.getElementById('filterDateTo').value;
+  const search = document.getElementById('filterSearch').value.toLowerCase();
+  const sort = document.getElementById('sortBy').value;
+  const dir = document.getElementById('sortDir').value;
+
+  if (village) data = data.filter(c => c.village === village);
+  if (stage) data = data.filter(c => c.stage === stage);
+  if (from) data = data.filter(c => c.nextDate >= from);
+  if (to) data = data.filter(c => c.nextDate <= to);
+  if (search) data = data.filter(c =>
+    [c.plaintiff,c.defendant,c.surveyNumber,c.caseNumber,c.village,c.advPlaintiff,c.advDefendant]
+      .join(' ').toLowerCase().includes(search)
+  );
+
+  data.sort((a, b) => {
+    let va = a[sort] || '', vb = b[sort] || '';
+    if (sort === 'priority') { va = parseInt(va)||999; vb = parseInt(vb)||999; }
+    if (typeof va === 'number') return dir === 'asc' ? va - vb : vb - va;
+    return dir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+  });
+
+  return data;
+}
+
+function updateFilters() {
+  const villages = [...new Set(cases.map(c => c.village).filter(Boolean))].sort();
+  const stages = [...new Set(cases.map(c => c.stage).filter(Boolean))].sort();
+  const vSel = document.getElementById('filterVillage');
+  const sSel = document.getElementById('filterStage');
+  const cur_v = vSel.value, cur_s = sSel.value;
+  vSel.innerHTML = '<option value="">All Villages</option>' + villages.map(v => `<option${v===cur_v?' selected':''}>${v}</option>`).join('');
+  sSel.innerHTML = '<option value="">All Stages</option>' + stages.map(s => `<option${s===cur_s?' selected':''}>${s}</option>`).join('');
+  const dl = document.getElementById('villageList');
+  dl.innerHTML = villages.map(v => `<option value="${v}">`).join('');
+}
+
+function updateStats() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const nextWeek = new Date(today); nextWeek.setDate(today.getDate()+7);
+  let week = 0, overdue = 0;
+  cases.forEach(c => {
+    if (!c.nextDate) return;
+    const d = new Date(c.nextDate); d.setHours(0,0,0,0);
+    if (d < today) overdue++;
+    else if (d <= nextWeek) week++;
+  });
+  document.getElementById('statTotal').textContent = cases.length;
+  document.getElementById('statWeek').textContent = week;
+  document.getElementById('statOverdue').textContent = overdue;
+  document.getElementById('statVillages').textContent = new Set(cases.map(c=>c.village).filter(Boolean)).size;
+}
+
+function renderTable() {
+  const data = getFiltered();
+  document.getElementById('tableCount').textContent = `${data.length} case${data.length!==1?'s':''}`;
+  const tb = document.getElementById('tableBody');
+  if (!data.length) {
+    tb.innerHTML = '<tr><td colspan="13" class="no-data">No cases match current filters.</td></tr>';
+    return;
+  }
+  tb.innerHTML = data.map(c => {
+    const pr = parseInt(c.priority)||0;
+    const pClass = pr===1?'p1':pr===2?'p2':'p3';
+    const dc = dateClass(c.nextDate);
+    const attachOrder = c.orderFileData ? `<a href="${c.orderFileData}" download="${c.orderFileName||'order'}" class="attach-link">📎</a>` : '';
+    return `<tr>
+      <td class="col-priority" style="text-align:center"><span class="priority-badge ${pClass}">${c.priority||'-'}</span></td>
+      <td class="date-cell col-date">${fmtDate(c.prevDate)}</td>
+      <td class="col-village">${esc(c.village)}</td>
+      <td>${esc(c.surveyNumber)}</td>
+      <td class="col-case" style="font-weight:500">${esc(c.caseNumber)}</td>
+      <td class="col-party">${esc(c.plaintiff)}</td>
+      <td class="col-party">${esc(c.defendant)}</td>
+      <td><span class="stage-badge">${esc(c.stage)}</span></td>
+      <td class="date-cell col-date ${dc}">${fmtDate(c.nextDate)}</td>
+      <td>${esc(c.nextStage)}</td>
+      <td class="col-adv">${esc(c.advPlaintiff)}</td>
+      <td class="col-adv">${esc(c.advDefendant)}</td>
+      <td class="col-actions">
+        <div class="row-actions">
+          <button class="icon-btn" title="View" onclick="viewCase('${c.id}')">👁</button>
+          <button class="icon-btn" title="Edit" onclick="editCase('${c.id}')">✏</button>
+          <button class="icon-btn danger" title="Delete" onclick="deleteCase('${c.id}')">🗑</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+  updateStats();
+  updateFilters();
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function sortBy(col) {
+  if (sortCol === col) sortDirection = sortDirection==='asc'?'desc':'asc';
+  else { sortCol = col; sortDirection = 'asc'; }
+  document.getElementById('sortBy').value = col;
+  document.getElementById('sortDir').value = sortDirection;
+  renderTable();
+}
+
+function clearFilters() {
+  document.getElementById('filterVillage').value = '';
+  document.getElementById('filterStage').value = '';
+  document.getElementById('filterDateFrom').value = '';
+  document.getElementById('filterDateTo').value = '';
+  document.getElementById('filterSearch').value = '';
+  renderTable();
+}
+
+function openAddModal() {
+  editingId = null;
+  fileData = {};
+  document.getElementById('modalTitle').textContent = 'Add New Case';
+  ['priority','caseNumber','village','surveyNumber','prevDate','nextDate','plaintiff','defendant',
+   'advPlaintiff','advDefendant','stage','nextStage','orderDate','orderNotes','papersPlaintiff','papersDefendant','remarks']
+    .forEach(f => { const el = document.getElementById('f_'+f); if(el) el.value=''; });
+  ['f_orderFile_name','f_papersPlaintiffFile_name','f_papersDefendantFile_name'].forEach(id => {
+    document.getElementById(id).textContent = '';
+  });
+  document.getElementById('caseModal').style.display = 'flex';
+}
+
+function editCase(id) {
+  const c = cases.find(x => x.id===id);
+  if (!c) return;
+  editingId = id;
+  fileData = {};
+  document.getElementById('modalTitle').textContent = 'Edit Case';
+  const fields = ['priority','caseNumber','village','surveyNumber','prevDate','nextDate','plaintiff','defendant',
+    'advPlaintiff','advDefendant','stage','nextStage','orderDate','orderNotes','papersPlaintiff','papersDefendant','remarks'];
+  fields.forEach(f => { const el = document.getElementById('f_'+f); if(el) el.value=c[f]||''; });
+  ['orderFile','papersPlaintiffFile','papersDefendantFile'].forEach(k => {
+    const nm = document.getElementById(`f_${k}_name`);
+    if (c[k+'Data']) { nm.textContent = c[k+'Name'] || 'File attached'; fileData[k] = { data: c[k+'Data'], name: c[k+'Name'] }; }
+    else nm.textContent = '';
+  });
+  document.getElementById('caseModal').style.display = 'flex';
+}
+
+function closeModal() { document.getElementById('caseModal').style.display = 'none'; }
+function closeModalOnOverlay(e) { if(e.target===document.getElementById('caseModal')) closeModal(); }
+
+function handleFile(inputId) {
+  const input = document.getElementById(inputId);
+  const file = input.files[0];
+  if (!file) return;
+  const key = inputId.replace('f_','');
+  const reader = new FileReader();
+  reader.onload = e => {
+    fileData[key] = { data: e.target.result, name: file.name };
+    document.getElementById(inputId+'_name').textContent = file.name;
+  };
+  reader.readAsDataURL(file);
+}
+
+function saveCase() {
+  const get = id => document.getElementById('f_'+id).value.trim();
+  if (!get('priority') || !get('caseNumber') || !get('plaintiff') || !get('defendant')) {
+    toast('Please fill required fields (Priority, Case No., Plaintiff, Defendant)', 'error');
+    return;
+  }
+  const c = {
+    id: editingId || uid(),
+    priority: get('priority'), caseNumber: get('caseNumber'), village: get('village'),
+    surveyNumber: get('surveyNumber'), prevDate: get('prevDate'), nextDate: get('nextDate'),
+    plaintiff: get('plaintiff'), defendant: get('defendant'),
+    advPlaintiff: get('advPlaintiff'), advDefendant: get('advDefendant'),
+    stage: get('stage'), nextStage: get('nextStage'),
+    orderDate: get('orderDate'), orderNotes: get('orderNotes'),
+    papersPlaintiff: get('papersPlaintiff'), papersDefendant: get('papersDefendant'),
+    remarks: get('remarks'),
+  };
+  ['orderFile','papersPlaintiffFile','papersDefendantFile'].forEach(k => {
+    if (fileData[k]) { c[k+'Data']=fileData[k].data; c[k+'Name']=fileData[k].name; }
+    else if (editingId) {
+      const old = cases.find(x=>x.id===editingId);
+      if(old){ c[k+'Data']=old[k+'Data']; c[k+'Name']=old[k+'Name']; }
+    }
+  });
+  if (editingId) { const i=cases.findIndex(x=>x.id===editingId); cases[i]=c; }
+  else cases.push(c);
+  persistLocal();
+  closeModal();
+  renderTable();
+  toast(editingId?'Case updated.':'Case added.', 'success');
+}
+
+function deleteCase(id) {
+  if (!confirm('Delete this case? This cannot be undone.')) return;
+  cases = cases.filter(c => c.id!==id);
+  persistLocal();
+  renderTable();
+  toast('Case deleted.', 'success');
+}
+
+function viewCase(id) {
+  const c = cases.find(x=>x.id===id);
+  if(!c) return;
+  document.getElementById('viewModalTitle').textContent = `Case: ${c.caseNumber||''}`;
+  const rows = (pairs) => pairs.map(([k,v]) => `<div class="detail-row"><div class="key">${k}</div><div class="val">${v||'—'}</div></div>`).join('');
+  const attach = (data, name) => data ? `<a href="${data}" download="${name||'file'}" class="attach-link">📎 ${name||'Download'}</a>` : '—';
+  document.getElementById('viewModalBody').innerHTML = `
+    <div class="detail-grid">
+      <div class="detail-section-title">Basic Information</div>
+      ${rows([['Priority',c.priority],['Case Number',c.caseNumber],['Village',c.village],['Survey Number',c.surveyNumber],['Previous Date',fmtDate(c.prevDate)],['Next Date',fmtDate(c.nextDate)]])}
+      <div class="detail-section-title">Parties</div>
+      ${rows([['Plaintiff',c.plaintiff],['Defendant',c.defendant],['Adv. (Plaintiff)',c.advPlaintiff],['Adv. (Defendant)',c.advDefendant]])}
+      <div class="detail-section-title">Stage</div>
+      ${rows([['Current Stage',c.stage],['Next Stage',c.nextStage]])}
+      <div class="detail-section-title">Order</div>
+      ${rows([['Order Date',fmtDate(c.orderDate)],['Order Notes',c.orderNotes],['Order File',attach(c.orderFileData,c.orderFileName)]])}
+      <div class="detail-section-title">Papers Filed</div>
+      ${rows([['Plaintiff Papers',c.papersPlaintiff],['Plaintiff Attachment',attach(c.papersPlaintiffFileData,c.papersPlaintiffFileName)],['Defendant Papers',c.papersDefendant],['Defendant Attachment',attach(c.papersDefendantFileData,c.papersDefendantFileName)]])}
+      <div class="detail-section-title">Remarks</div>
+      <div class="detail-row" style="grid-column:1/-1"><div class="val">${c.remarks||'—'}</div></div>
+    </div>`;
+  document.getElementById('viewEditBtn').onclick = () => { closeViewModal(); editCase(id); };
+  document.getElementById('viewModal').style.display = 'flex';
+}
+
+function closeViewModal() { document.getElementById('viewModal').style.display = 'none'; }
+function closeViewOnOverlay(e) { if(e.target===document.getElementById('viewModal')) closeViewModal(); }
+
+function persistLocal() { localStorage.setItem('court_cases', JSON.stringify(cases)); }
+
+function saveLocal() {
+  const blob = new Blob([JSON.stringify(cases, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'court_cases_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  toast('JSON exported.', 'success');
+}
+
+function loadLocal(e) {
+  const file = e.target.files[0];
+  if(!file) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!Array.isArray(data)) throw new Error('Invalid');
+      if (!confirm(`Load ${data.length} cases? This will merge with existing data.`)) return;
+      const existingIds = new Set(cases.map(c=>c.id));
+      data.forEach(c => { if(!existingIds.has(c.id)) cases.push(c); });
+      persistLocal();
+      renderTable();
+      toast(`Loaded ${data.length} cases.`, 'success');
+    } catch { toast('Invalid JSON file.', 'error'); }
+  };
+  r.readAsText(file);
+}
+
+function getExportData() {
+  return getFiltered().map(c => ({
+    'Priority': c.priority,
+    'Previous Date': fmtDate(c.prevDate),
+    'Village': c.village,
+    'Survey Number': c.surveyNumber,
+    'Case Number': c.caseNumber,
+    'Plaintiff': c.plaintiff,
+    'Defendant': c.defendant,
+    'Stage': c.stage,
+    'Next Date': fmtDate(c.nextDate),
+    'Next Stage': c.nextStage,
+    'Adv. (Plaintiff)': c.advPlaintiff,
+    'Adv. (Defendant)': c.advDefendant,
+    'Order Date': fmtDate(c.orderDate),
+    'Order Notes': c.orderNotes,
+    'Papers (Plaintiff)': c.papersPlaintiff,
+    'Papers (Defendant)': c.papersDefendant,
+    'Remarks': c.remarks,
+  }));
+}
+
+function exportExcel() {
+  const data = getExportData();
+  if(!data.length) { toast('No cases to export.', 'error'); return; }
+  const ws = XLSX.utils.json_to_sheet(data);
+  const colWidths = Object.keys(data[0]).map(k => ({ wch: Math.max(k.length, 15) }));
+  ws['!cols'] = colWidths;
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Cases');
+  XLSX.writeFile(wb, 'court_cases_' + new Date().toISOString().slice(0,10) + '.xlsx');
+  toast('Excel exported.', 'success');
+}
+
+function exportPDF() {
+  const data = getFiltered();
+  if(!data.length) { toast('No cases to export.', 'error'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  doc.setFontSize(14);
+  doc.text('Court Case Diary', 14, 14);
+  doc.setFontSize(9);
+  doc.text('Generated: ' + new Date().toLocaleDateString('en-IN'), 14, 20);
+  const head = [['Pri.','Prev Date','Village','Survey No.','Case No.','Plaintiff','Defendant','Stage','Next Date','Next Stage','Adv.(P)','Adv.(D)']];
+  const body = data.map(c => [c.priority,fmtDate(c.prevDate),c.village,c.surveyNumber,c.caseNumber,c.plaintiff,c.defendant,c.stage,fmtDate(c.nextDate),c.nextStage,c.advPlaintiff,c.advDefendant]);
+  doc.autoTable({ head, body, startY: 24, styles: { fontSize: 7, cellPadding: 2 }, headStyles: { fillColor: [44, 74, 124], textColor: 255, fontStyle: 'bold' }, alternateRowStyles: { fillColor: [245, 243, 238] }, margin: { left: 10, right: 10 } });
+  doc.save('court_cases_' + new Date().toISOString().slice(0,10) + '.pdf');
+  toast('PDF exported.', 'success');
+}
+
+function exportWord() {
+  const data = getFiltered();
+  if(!data.length) { toast('No cases to export.', 'error'); return; }
+  const headers = ['Priority','Previous Date','Village','Survey No.','Case No.','Plaintiff','Defendant','Stage','Next Date','Next Stage','Adv.(Plaintiff)','Adv.(Defendant)','Order Date','Order Notes','Papers (P)','Papers (D)','Remarks'];
+  const thStyle = 'background:#2c4a7c;color:#fff;padding:4px 6px;border:1px solid #ccc;font-size:10pt;font-weight:bold;';
+  const tdStyle = 'padding:4px 6px;border:1px solid #ccc;font-size:9pt;vertical-align:top;';
+  const trAlt = (i) => i%2===1 ? 'background:#f5f3ee;' : 'background:#fff;';
+  const rows = data.map((c,i) => `<tr style="${trAlt(i)}">
+    <td style="${tdStyle}">${c.priority||''}</td>
+    <td style="${tdStyle}">${fmtDate(c.prevDate)}</td>
+    <td style="${tdStyle}">${c.village||''}</td>
+    <td style="${tdStyle}">${c.surveyNumber||''}</td>
+    <td style="${tdStyle}">${c.caseNumber||''}</td>
+    <td style="${tdStyle}">${c.plaintiff||''}</td>
+    <td style="${tdStyle}">${c.defendant||''}</td>
+    <td style="${tdStyle}">${c.stage||''}</td>
+    <td style="${tdStyle}">${fmtDate(c.nextDate)}</td>
+    <td style="${tdStyle}">${c.nextStage||''}</td>
+    <td style="${tdStyle}">${c.advPlaintiff||''}</td>
+    <td style="${tdStyle}">${c.advDefendant||''}</td>
+    <td style="${tdStyle}">${fmtDate(c.orderDate)}</td>
+    <td style="${tdStyle}">${c.orderNotes||''}</td>
+    <td style="${tdStyle}">${c.papersPlaintiff||''}</td>
+    <td style="${tdStyle}">${c.papersDefendant||''}</td>
+    <td style="${tdStyle}">${c.remarks||''}</td>
+  </tr>`).join('');
+  const html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+  <head><meta charset='utf-8'><title>Court Case Diary</title>
+  <style>body{font-family:Times New Roman,serif;font-size:10pt;}h2{font-size:14pt;}</style>
+  </head><body>
+  <h2>Court Case Diary</h2>
+  <p style="font-size:9pt;color:#555">Generated: ${new Date().toLocaleDateString('en-IN')} &mdash; Total: ${data.length} cases</p>
+  <table style="border-collapse:collapse;width:100%;table-layout:fixed;">
+    <thead><tr>${headers.map(h=>`<th style="${thStyle}">${h}</th>`).join('')}</tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  </body></html>`;
+  const blob = new Blob(['\ufeff'+html], {type:'application/msword'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'court_cases_' + new Date().toISOString().slice(0,10) + '.doc';
+  a.click();
+  toast('Word file exported.', 'success');
+}
+
+// GOOGLE DRIVE
+function toggleDrivePanel() {
+  const el = document.getElementById('drivePanelSidebar');
+  el.scrollIntoView({behavior:'smooth'});
+}
+
+function initGoogleDrive() {
+  if (!window.google) {
+    const s = document.createElement('script');
+    s.src = 'https://accounts.google.com/gsi/client';
+    s.onload = () => {
+      const s2 = document.createElement('script');
+      s2.src = 'https://apis.google.com/js/api.js';
+      s2.onload = () => startDriveFlow();
+      document.head.appendChild(s2);
+    };
+    document.head.appendChild(s);
+    toast('Loading Google Sign-In…');
+  } else { startDriveFlow(); }
+}
+
+function startDriveFlow() {
+  const clientId = prompt('Enter your Google OAuth Client ID (from console.cloud.google.com):');
+  if (!clientId) return;
+  try {
+    driveTokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: SCOPES,
+      callback: (resp) => {
+        if(resp.error) { toast('Drive auth failed: '+resp.error, 'error'); return; }
+        driveAccessToken = resp.access_token;
+        document.getElementById('driveDot').classList.add('connected');
+        document.getElementById('driveStatusText').textContent = 'Connected';
+        document.getElementById('btnSaveDrive').disabled = false;
+        document.getElementById('btnLoadDrive').disabled = false;
+        toast('Connected to Google Drive!', 'success');
+      }
+    });
+    driveTokenClient.requestAccessToken();
+  } catch(e) { toast('Drive init error. Check Client ID.', 'error'); }
+}
+
+async function saveToDrive() {
+  if(!driveAccessToken) { toast('Not connected to Drive.', 'error'); return; }
+  const content = JSON.stringify(cases, null, 2);
+  const boundary = '-------314159265358979323846';
+  const metadata = JSON.stringify({ name: 'court_cases.json', mimeType: 'application/json' });
+  let body, url, method;
+  if (driveFileId) {
+    url = `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=multipart`;
+    method = 'PATCH';
+  } else {
+    url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+    method = 'POST';
+  }
+  body = `--${boundary}\r\nContent-Type: application/json\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${content}\r\n--${boundary}--`;
+  try {
+    const r = await fetch(url, { method, headers: { 'Authorization': 'Bearer '+driveAccessToken, 'Content-Type': `multipart/related; boundary="${boundary}"` }, body });
+    const data = await r.json();
+    if(data.id) { driveFileId = data.id; toast('Saved to Google Drive!', 'success'); }
+    else toast('Drive save failed.', 'error');
+  } catch(e) { toast('Drive save error: '+e.message, 'error'); }
+}
+
+async function loadFromDrive() {
+  if(!driveAccessToken) { toast('Not connected to Drive.', 'error'); return; }
+  try {
+    const listR = await fetch("https://www.googleapis.com/drive/v3/files?q=name='court_cases.json'&fields=files(id,name)", { headers: { 'Authorization': 'Bearer '+driveAccessToken } });
+    const list = await listR.json();
+    if(!list.files||!list.files.length) { toast('No court_cases.json found in Drive.', 'error'); return; }
+    const fid = list.files[0].id;
+    driveFileId = fid;
+    const fileR = await fetch(`https://www.googleapis.com/drive/v3/files/${fid}?alt=media`, { headers: { 'Authorization': 'Bearer '+driveAccessToken } });
+    const data = await fileR.json();
+    if(Array.isArray(data)) {
+      cases = data;
+      persistLocal();
+      renderTable();
+      toast(`Loaded ${cases.length} cases from Drive!`, 'success');
+    } else toast('Invalid data in Drive file.', 'error');
+  } catch(e) { toast('Drive load error: '+e.message, 'error'); }
+}
+
+function toast(msg, type='') {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = 'toast' + (type?' '+type:'');
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(()=>t.remove(), 3500);
+}
+
+renderTable();
+</script>
+</body>
+</html>
